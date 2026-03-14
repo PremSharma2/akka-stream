@@ -4,7 +4,8 @@ import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Flow, Sink, Source}
-
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 object FirstPrinciples extends App {
@@ -291,19 +292,34 @@ object FirstPrinciples extends App {
  // to avoid this use Options instead
 
   // various kinds of sources
-  // Creates a Source which emits exactly ONE element and then completes.
-  val finiteSource = Source.single(1)
-  val anotherFiniteSource = Source(List(1, 2, 3))
-  val emptySource = Source.empty[Int]
-  val infiniteSource = Source(Stream.from(1)) // do not confuse an Akka stream with a "collection" Stream
-  import scala.concurrent.ExecutionContext.Implicits.global
-  val futureSource = Source.fromFuture(Future(42))
+
+  // Emits one element and then completes
+  val finiteSource: Source[Int, NotUsed] = Source.single(1)
+
+  // Emits all elements from the list one by one and then completes
+  val anotherFiniteSource: Source[Int, NotUsed] = Source(List(1, 2, 3))
+
+  // Emits nothing; immediately completes
+  val emptySource: Source[Int, NotUsed] = Source.empty[Int]
+
+  // Infinite source: emits 1,2,3,4,... forever unless stopped
+  val infiniteSource: Source[Int, NotUsed] = Source(Stream.from(1))
+
+  // Emits the future result once the Future completes successfully to downstream
+  val futureSource: Source[Int, NotUsed] = Source.fromFuture(Future(42))
 
 
   // Types of Sinks
-  val theMostBoringSink = Sink.ignore
-  val foreachSink = Sink.foreach[String](println)
-  val headSink = Sink.head[Int] // retrieves head and then closes the stream
+  // Consumes all elements and discards them
+  val ignoreSink: Sink[Any, Future[Done]] = Sink.ignore
+
+  // Prints every incoming String
+  val foreachSink: Sink[String, Future[Done]] = Sink.foreach[String](println)
+
+  // Captures the first element only, then cancels upstream
+  val headSink: Sink[Int, Future[Int]] = Sink.head[Int]
+
+  // Sums all incoming Int values, starting with accumulator 0
   val foldSink = Sink.fold[Int, Int](0)((a, b) => a + b)
 
 
